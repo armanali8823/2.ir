@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حضور و غیاب حسین کمالی</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+body { font-family: 'Vazirmatn', sans-serif; background: linear-gradient(135deg, #1e1e2f, #3a3a5c); color: #fff; display: flex; justify-content: center; align-items: flex-start; padding-top: 20px; }
+.container { background: #2b2b45; padding: 30px; border-radius: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); text-align: center; width: 90%; max-width: 550px; }
+h2,h3 { margin-bottom: 15px; }
+input { width: 80%; padding: 12px; margin: 10px 0; border-radius: 10px; border: none; font-size: 16px; }
+button { padding: 12px 25px; margin: 5px; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; transition: 0.3s; background: linear-gradient(145deg, #ff4d4f, #ff7875); color: #fff; font-weight: bold; box-shadow: 0 6px 10px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.2); }
+button:hover { transform: scale(1.08) translateY(-2px); box-shadow: 0 10px 15px rgba(0,0,0,0.4), 0 6px 8px rgba(0,0,0,0.25); }
+table { width: 100%; margin-top: 20px; border-collapse: collapse; background: #3a3a5c; border-radius: 10px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
+th, td { padding: 8px; text-align: center; border-bottom: 1px solid #555; }
+th { background: #444; }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>حسین کمالی</h2>
+<input type="text" id="branch" placeholder="شعبه/محل کار"><br>
+<button id="entryBtn">ورود</button>
+<button id="exitBtn" disabled>خروج</button>
+<h3 id="currentDate"></h3>
+<table>
+<thead>
+<tr>
+<th>تایم ورود</th>
+<th>تایم خروج</th>
+<th>شعبه</th>
+</tr>
+</thead>
+<tbody id="myAttendance"></tbody>
+</table>
+</div>
+
+<script>
+const name = 'حسین کمالی';
+let attendance = JSON.parse(localStorage.getItem('attendance')||'[]');
+const branchEl = document.getElementById('branch');
+const entryBtn = document.getElementById('entryBtn');
+const exitBtn = document.getElementById('exitBtn');
+const currentDateEl = document.getElementById('currentDate');
+
+function saveRecords(){ 
+  localStorage.setItem('attendance', JSON.stringify(attendance)); 
+  window.dispatchEvent(new Event('storage'));
+}
+
+function todayStr(){ return new Date().toLocaleDateString('fa-IR'); }
+
+let currentDay = todayStr();
+currentDateEl.textContent = "تاریخ امروز: " + currentDay;
+
+// نمایش جدول
+function showMyAttendance(){
+  const tbody = document.getElementById('myAttendance');
+  tbody.innerHTML='';
+  const today = todayStr();
+  let grouped = {};
+  attendance.forEach((item)=>{
+    if(item.name!==name || item.date!==today) return;
+    if(!grouped[item.branch]) grouped[item.branch] = {entry:'', exit:''};
+    if(item.type==='ورود') grouped[item.branch].entry = item.time;
+    if(item.type==='خروج') grouped[item.branch].exit = item.outTime;
+  });
+  Object.keys(grouped).forEach(branch=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${grouped[branch].entry}</td>
+      <td>${grouped[branch].exit}</td>
+      <td>${branch}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+entryBtn.onclick = ()=>{
+  const branch = branchEl.value.trim();
+  if(!branch){ alert('شعبه را وارد کنید'); return; }
+  const now = new Date();
+  attendance.push({
+    name,
+    type:'ورود',
+    time: now.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'}),
+    branch,
+    date: todayStr(),
+    outTime: ''
+  });
+  saveRecords(); 
+  showMyAttendance();
+  entryBtn.disabled=true; exitBtn.disabled=false;
+};
+
+exitBtn.onclick = ()=>{
+  const branch = branchEl.value.trim();
+  if(!branch){ alert('شعبه را وارد کنید'); return; }
+  const now = new Date();
+  attendance.push({
+    name,
+    type:'خروج',
+    time:'',
+    outTime: now.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'}),
+    branch,
+    date: todayStr()
+  });
+  saveRecords(); 
+  showMyAttendance();
+  entryBtn.disabled=false; exitBtn.disabled=true;
+  branchEl.value='';
+};
+
+// بروزرسانی خودکار نیمه شب
+setInterval(()=>{
+  const today = todayStr();
+  if(today!==currentDay){
+    currentDay = today;
+    showMyAttendance();
+    entryBtn.disabled=false; exitBtn.disabled=true;
+  }
+},60000);
+
+showMyAttendance();
+</script>
+</body>
+</html>
