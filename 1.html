@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل مدیریت حضور و غیاب</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+
+body {
+  font-family: 'Vazirmatn', sans-serif;
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 20px;
+  background: linear-gradient(135deg, #1e1e2f, #2b2b45);
+  color: #fff;
+}
+
+#panel {
+  background: #2b2b45;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  width: 90%;
+  max-width: 800px;
+  text-align: center;
+}
+
+h2,h3 { margin-bottom: 15px; }
+
+input[type="text"] {
+  width: 80%;
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 5px;
+  font-size: 16px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-weight: bold;
+}
+
+button.edit { background: linear-gradient(145deg,#1890ff,#40a9ff); color: #fff; }
+button.save { background: linear-gradient(145deg,#52c41a,#73d13d); color: #fff; }
+button.delete { background: linear-gradient(145deg,#ff7875,#ff4d4f); color: #fff; }
+
+table {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+  background: #3a3a5c;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+}
+
+th, td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #555;
+}
+
+th { background: #444; }
+
+input.editable {
+  background: #fff;
+  color: #000;
+  border: 1px solid #ff4d4f;
+}
+
+.name-cell {
+  font-weight: bold;
+  font-size: 16px;
+  background: linear-gradient(90deg, #f39c12, #e74c3c, #8e44ad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+}
+</style>
+</head>
+<body>
+<div id="panel">
+<h2>پنل مدیریت حضور و غیاب</h2>
+<h3 id="currentDate"></h3>
+<table>
+<thead>
+<tr>
+<th>کارمند</th>
+<th>تایم ورود</th>
+<th>تایم خروج</th>
+<th>شعبه</th>
+<th>ویرایش</th>
+<th>ذخیره</th>
+<th>حذف</th>
+</tr>
+</thead>
+<tbody id="managerAttendance"></tbody>
+</table>
+</div>
+
+<script>
+let attendance = JSON.parse(localStorage.getItem('attendance')||'[]');
+const managerTable = document.getElementById('managerAttendance');
+const currentDateEl = document.getElementById('currentDate');
+
+function saveRecords(){ 
+  localStorage.setItem('attendance', JSON.stringify(attendance)); 
+}
+
+function todayStr(){ return new Date().toLocaleDateString('fa-IR'); }
+
+let currentDay = todayStr();
+currentDateEl.textContent = "تاریخ امروز: " + currentDay;
+
+function showManagerAttendance(){
+  managerTable.innerHTML='';
+  const today = todayStr();
+
+  // گروه‌بندی رکوردها: هر کارمند و شعبه یک ردیف
+  let grouped = {};
+  attendance.forEach(item=>{
+    if(item.date!==today) return;
+    const key = item.name + '_' + item.branch;
+    if(!grouped[key]) grouped[key] = {name:item.name, branch:item.branch, entry:'', exit:''};
+    if(item.type==='ورود') grouped[key].entry = item.time;
+    if(item.type==='خروج') grouped[key].exit = item.outTime;
+  });
+
+  Object.values(grouped).forEach((item,index)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="name-cell">${item.name}</td>
+      <td><input type="text" value="${item.entry}" disabled></td>
+      <td><input type="text" value="${item.exit}" disabled></td>
+      <td><input type="text" value="${item.branch}" disabled></td>
+      <td><button class="edit" onclick="enableEdit('${item.name}','${item.branch}')">ویرایش</button></td>
+      <td><button class="save" onclick="saveEdit('${item.name}','${item.branch}')" disabled>ذخیره</button></td>
+      <td><button class="delete" onclick="deleteRecord('${item.name}','${item.branch}')">حذف</button></td>
+    `;
+    managerTable.appendChild(tr);
+  });
+}
+
+function enableEdit(name, branch){
+  const tbody = document.getElementById('managerAttendance');
+  for(let row of tbody.children){
+    if(row.cells[0].textContent===name && row.cells[3].children[0].value===branch){
+      row.querySelectorAll('input').forEach(inp=>{ inp.disabled=false; inp.classList.add('editable'); });
+      row.querySelector('button.save').disabled=false;
+      break;
+    }
+  }
+}
+
+function saveEdit(name, branch){
+  const tbody = document.getElementById('managerAttendance');
+  for(let row of tbody.children){
+    if(row.cells[0].textContent===name && row.cells[3].children[0].value===branch){
+      const inputs = row.querySelectorAll('input');
+      attendance.forEach(item=>{
+        if(item.name===name && item.branch===branch && item.date===todayStr()){
+          if(item.type==='ورود') item.time = inputs[1].value;
+          if(item.type==='خروج') item.outTime = inputs[2].value;
+        }
+      });
+      saveRecords();
+      showManagerAttendance();
+      alert('تغییرات ذخیره شد ✅');
+      break;
+    }
+  }
+}
+
+function deleteRecord(name, branch){
+  if(confirm('آیا از حذف این رکورد مطمئن هستید؟')){
+    attendance = attendance.filter(item=>!(item.name===name && item.branch===branch && item.date===todayStr()));
+    saveRecords(); 
+    showManagerAttendance();
+  }
+}
+
+// بروزرسانی خودکار
+window.addEventListener('storage', ()=>{
+  attendance = JSON.parse(localStorage.getItem('attendance')||'[]');
+  showManagerAttendance();
+});
+
+showManagerAttendance();
+</script>
+</body>
+</html>
